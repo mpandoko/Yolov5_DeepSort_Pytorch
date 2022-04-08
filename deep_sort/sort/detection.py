@@ -36,7 +36,7 @@ class Detection(object):
         `(top left, bottom right)`.
         """
         ret = self.tlwh.copy()
-        ret[2:] += ret[:2]
+        ret[2:4] += ret[:2]
         return ret
 
     def to_xyah(self):
@@ -44,6 +44,6 @@ class Detection(object):
         height)`, where the aspect ratio is `width / height`.
         """
         ret = self.tlwh.copy()
-        ret[:2] += ret[2:] / 2
+        ret[:2] += ret[2:4] / 2
         ret[2] /= ret[3]
         return ret

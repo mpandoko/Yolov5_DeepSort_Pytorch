@@ -21,7 +21,6 @@ __all__ = ['DeepSort']
 
 class DeepSort(object):
     def __init__(self, model, device, max_dist=0.2, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100):
-        # models trained on: market1501, dukemtmcreid and msmt17
         if is_model_in_factory(model):
             # download the model
             model_path = join('deep_sort/deep/checkpoint', model + '.pth')
@@ -38,6 +37,7 @@ class DeepSort(object):
             if is_model_type_in_model_path(model):
                 model_name = get_model_type(model)
                 self.extractor = FeatureExtractor(
+                    # get rid of dataset information DeepSort model name
                     model_name=model_name,
                     model_path=model,
                     device=str(device)
@@ -53,11 +53,12 @@ class DeepSort(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    def update(self, bbox_xywh, confidences, classes, ori_img, use_yolo_preds=False):
+    def update(self, xywhz, confidences, classes, ori_img, use_yolo_preds=False):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
+        bbox_xywh = xywhz[:,:4]
         features = self._get_features(bbox_xywh, ori_img)
-        bbox_tlwh = self._xywh_to_tlwh(bbox_xywh)
+        bbox_tlwh = self._xywh_to_tlwh(xywhz)
         detections = [Detection(bbox_tlwh[i], conf, features[i]) for i, conf in enumerate(
             confidences)]
 
@@ -78,11 +79,11 @@ class DeepSort(object):
                 det = track.get_yolo_pred()
                 x1, y1, x2, y2 = self._tlwh_to_xyxy(det.tlwh)
             else:
-                box = track.to_tlwh()
-                x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
+                box = track.to_tlwhzv()
+                x1, y1, x2, y2, z, vx, vy, va, vh, vz = self._tlwh_to_xyxyz(box)
             track_id = track.track_id
             class_id = track.class_id
-            outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=np.int))
+            outputs.append(np.array([int(x1), int(y1), int(x2), int(y2), z,  vx, vy, va, vh, vz, int(track_id), int(class_id)]))    
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
         return outputs
@@ -110,18 +111,18 @@ class DeepSort(object):
         y2 = min(int(y + h / 2), self.height - 1)
         return x1, y1, x2, y2
 
-    def _tlwh_to_xyxy(self, bbox_tlwh):
+    def _tlwh_to_xyxyz(self, bbox_tlwh):
         """
         TODO:
             Convert bbox from xtl_ytl_w_h to xc_yc_w_h
         Thanks JieChen91@github.com for reporting this bug!
         """
-        x, y, w, h = bbox_tlwh
+        x, y, w, h, z, vx, vy, va, vh, vz = bbox_tlwh
         x1 = max(int(x), 0)
         x2 = min(int(x+w), self.width - 1)
         y1 = max(int(y), 0)
         y2 = min(int(y+h), self.height - 1)
-        return x1, y1, x2, y2
+        return x1, y1, x2, y2, z, vx, vy, va, vh, vz
 
     def increment_ages(self):
         self.tracker.increment_ages()

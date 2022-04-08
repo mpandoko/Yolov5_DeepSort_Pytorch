@@ -92,9 +92,24 @@ class Track:
             The bounding box.
 
         """
-        ret = self.mean[:4].copy()
+        ret = self.mean[:5].copy()
         ret[2] *= ret[3]
-        ret[:2] -= ret[2:] / 2
+        ret[:2] -= ret[2:4] / 2
+        return ret
+
+    def to_tlwhzv(self):
+        """Get current position in bounding box format `(top left x, top left y,
+        width, height)`.
+
+        Returns
+        -------
+        ndarray
+            The bounding box, z, and respective derivatives.
+
+        """
+        ret = self.mean[:11].copy()
+        ret[2] *= ret[3]
+        ret[:2] -= ret[2:4] / 2
         return ret
 
     def to_tlbr(self):
@@ -108,7 +123,7 @@ class Track:
 
         """
         ret = self.to_tlwh()
-        ret[2:] = ret[:2] + ret[2:]
+        ret[2:4] = ret[:2] + ret[2:4]
         return ret
 
     def get_yolo_pred(self):
@@ -151,6 +166,7 @@ class Track:
             The associated detection.
 
         """
+        #fetch vx vz here probably
         self.yolo_bbox = detection
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah())

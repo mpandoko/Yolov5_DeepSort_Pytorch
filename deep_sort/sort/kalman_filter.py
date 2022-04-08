@@ -24,21 +24,23 @@ class KalmanFilter(object):
     """
     A simple Kalman filter for tracking bounding boxes in image space.
 
-    The 8-dimensional state space
+    The 10-dimensional state space
 
         x, y, a, h, vx, vy, va, vh
 
-    contains the bounding box center position (x, y), aspect ratio a, height h,
+            try: x, y, z, a, h, vx, vy, vz, va, vh 
+
+    contains the bounding box center position (x, y), aspect ratio a, height h, depth z,
     and their respective velocities.
 
     Object motion follows a constant velocity model. The bounding box location
-    (x, y, a, h) is taken as direct observation of the state space (linear
+    (x, y, a, h, z) is taken as direct observation of the state space (linear
     observation model).
 
     """
 
     def __init__(self):
-        ndim, dt = 4, 1.
+        ndim, dt = 5, 1.
 
         # Create Kalman filter model matrices.
         self._motion_mat = np.eye(2 * ndim, 2 * ndim)
@@ -78,10 +80,14 @@ class KalmanFilter(object):
             2 * self._std_weight_position * measurement[1],   # the center point y
             1 * measurement[2],                               # the ratio of width/height
             2 * self._std_weight_position * measurement[3],   # the height
+            # 0.4 * measurement[4], # z , to do: optimize 
+            2 * self._std_weight_position * measurement[4] * 1000,   # z
             10 * self._std_weight_velocity * measurement[0],
             10 * self._std_weight_velocity * measurement[1],
             0.1 * measurement[2],
-            10 * self._std_weight_velocity * measurement[3]]
+            10 * self._std_weight_velocity * measurement[3],
+            10 * self._std_weight_velocity * measurement[4] * 1000]
+            # 10.0 * measurement[4]] # to do: optimize
         covariance = np.diag(np.square(std))
         return mean, covariance
 
@@ -108,12 +114,16 @@ class KalmanFilter(object):
             self._std_weight_position * mean[0],
             self._std_weight_position * mean[1],
             1 * mean[2],
-            self._std_weight_position * mean[3]]
+            self._std_weight_position * mean[3],
+            self._std_weight_position * mean[4] * 1000] # to do: optimize
+            # 0.2 * mean[4]] # to do: optimize
         std_vel = [
             self._std_weight_velocity * mean[0],
             self._std_weight_velocity * mean[1],
             0.1 * mean[2],
-            self._std_weight_velocity * mean[3]]
+            self._std_weight_velocity * mean[3],
+            self._std_weight_velocity * mean[4] * 1000]
+            # 1.0 * mean[4]] # to do: optimize
 
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
         mean = np.dot(self._motion_mat, mean)
@@ -142,7 +152,9 @@ class KalmanFilter(object):
             self._std_weight_position * mean[0],
             self._std_weight_position * mean[1],
             0.1 * mean[2],
-            self._std_weight_position * mean[3]]
+            self._std_weight_position * mean[3],
+            self._std_weight_position * mean[4] * 1000]
+            # 0.1 * mean[4]] # to do: optimize
         innovation_cov = np.diag(np.square(std))
         mean = np.dot(self._update_mat, mean)
         covariance = np.linalg.multi_dot((

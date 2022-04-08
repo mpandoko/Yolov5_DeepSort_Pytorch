@@ -23,9 +23,9 @@ def iou(bbox, candidates):
         occluded by the candidate.
 
     """
-    bbox_tl, bbox_br = bbox[:2], bbox[:2] + bbox[2:]
+    bbox_tl, bbox_br = bbox[:2], bbox[:2] + bbox[2:4]
     candidates_tl = candidates[:, :2]
-    candidates_br = candidates[:, :2] + candidates[:, 2:]
+    candidates_br = candidates[:, :2] + candidates[:, 2:4]
 
     tl = np.c_[np.maximum(bbox_tl[0], candidates_tl[:, 0])[:, np.newaxis],
                np.maximum(bbox_tl[1], candidates_tl[:, 1])[:, np.newaxis]]
