@@ -25,14 +25,14 @@ import pyrealsense2 as rs
 from yolov5.models.experimental import attempt_load
 from yolov5.utils.downloads import attempt_download
 from yolov5.models.common import DetectMultiBackend
-from utils.datasets import LoadRealSense2, LoadImages, LoadStreams
+from utils2.datasets import LoadRealSense2, LoadImages, LoadStreams
 from yolov5.utils.general import (LOGGER, check_img_size, non_max_suppression, scale_coords, 
                                   check_imshow, xyxy2xywh, increment_path)
 from yolov5.utils.torch_utils import select_device, time_sync
 from yolov5.utils.plots import Annotator, colors
 from deep_sort.utils.parser import get_config
 from deep_sort.deep_sort import DeepSort
-from utils.object_coordinate import *
+from utils2.object_coordinate import *
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 deepsort root directory
@@ -207,6 +207,7 @@ def detect(opt):
                                 vx = output[5]
                                 vz = output[9]
                                 dx = x - x_1
+                                print(x_1)
                                 xy_m = rs.rs2_deproject_pixel_to_point(color_intrin, [x,y], z)
                                 xy_1m = rs.rs2_deproject_pixel_to_point(color_intrin, [x_1,y_1], z_1)
                                 dx_m = xy_m[0]-xy_1m[0]

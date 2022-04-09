@@ -50,7 +50,7 @@ If you already cloned and forgot to use `--recurse-submodules` you can run `git 
 Tracking can be run on most video formats
 
 ```bash
-$ python track.py --source 0  # webcam
+$ python track.py --source 0 --show-vid --save-tct # webcam
                            img.jpg  # image
                            vid.mp4  # video
                            path/  # directory
@@ -58,6 +58,15 @@ $ python track.py --source 0  # webcam
                            'https://youtu.be/Zgi9g1ksQHc'  # YouTube
                            'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream
 ```
+
+## Live plot
+
+Open another terminal
+
+```bash
+$ python Live_Plot.py
+```
+
 
 
 ## Select object detection and ReID model
