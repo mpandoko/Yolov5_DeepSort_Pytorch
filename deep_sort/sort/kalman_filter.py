@@ -1,6 +1,7 @@
 # vim: expandtab:ts=4:sw=4
 import numpy as np
 import scipy.linalg
+from utils2.object_coordinate import *
 
 
 """
@@ -81,12 +82,12 @@ class KalmanFilter(object):
             1 * measurement[2],                               # the ratio of width/height
             2 * self._std_weight_position * measurement[3],   # the height
             # 0.4 * measurement[4], # z , to do: optimize 
-            2 * self._std_weight_position * measurement[4] * 1000,   # z
+            2 * self._std_weight_position * measurement[4],   # z
             10 * self._std_weight_velocity * measurement[0],
             10 * self._std_weight_velocity * measurement[1],
             0.1 * measurement[2],
             10 * self._std_weight_velocity * measurement[3],
-            10 * self._std_weight_velocity * measurement[4] * 1000]
+            10 * self._std_weight_velocity * measurement[4]]
             # 10.0 * measurement[4]] # to do: optimize
         covariance = np.diag(np.square(std))
         return mean, covariance
@@ -115,14 +116,14 @@ class KalmanFilter(object):
             self._std_weight_position * mean[1],
             1 * mean[2],
             self._std_weight_position * mean[3],
-            self._std_weight_position * mean[4] * 1000] # to do: optimize
+            self._std_weight_position * mean[4]] # to do: optimize
             # 0.2 * mean[4]] # to do: optimize
         std_vel = [
             self._std_weight_velocity * mean[0],
             self._std_weight_velocity * mean[1],
             0.1 * mean[2],
             self._std_weight_velocity * mean[3],
-            self._std_weight_velocity * mean[4] * 1000]
+            self._std_weight_velocity * mean[4]]
             # 1.0 * mean[4]] # to do: optimize
 
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
@@ -153,7 +154,7 @@ class KalmanFilter(object):
             self._std_weight_position * mean[1],
             0.1 * mean[2],
             self._std_weight_position * mean[3],
-            self._std_weight_position * mean[4] * 1000]
+            self._std_weight_position * mean[4]]
             # 0.1 * mean[4]] # to do: optimize
         innovation_cov = np.diag(np.square(std))
         mean = np.dot(self._update_mat, mean)
@@ -195,7 +196,7 @@ class KalmanFilter(object):
             kalman_gain, projected_cov, kalman_gain.T))
         return new_mean, new_covariance
 
-    def gating_distance(self, mean, covariance, measurements,
+    def gating_distance(self, mean, covariance, measurements, color_intrin,
                         only_position=False):
         """Compute gating distance between state distribution and measurements.
 
@@ -226,6 +227,7 @@ class KalmanFilter(object):
 
         """
         mean, covariance = self.project(mean, covariance)
+        mean = point_to_pixel(mean, color_intrin)
         if only_position:
             mean, covariance = mean[:2], covariance[:2, :2]
             measurements = measurements[:, :2]

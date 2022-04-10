@@ -5,6 +5,7 @@ from . import kalman_filter
 from . import linear_assignment
 from . import iou_matching
 from .track import Track
+from utils2.object_coordinate import *
 
 
 class Tracker:
@@ -59,7 +60,7 @@ class Tracker:
             track.increment_age()
             track.mark_missed()
 
-    def update(self, detections, classes):
+    def update(self, detections, classes, color_intrin):
         """Perform measurement update and track management.
 
         Parameters
@@ -70,16 +71,16 @@ class Tracker:
         """
         # Run matching cascade.
         matches, unmatched_tracks, unmatched_detections = \
-            self._match(detections)
+            self._match(detections, color_intrin)
 
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
-                self.kf, detections[detection_idx], classes[detection_idx])
+                self.kf, detections[detection_idx], classes[detection_idx], color_intrin)
         for track_idx in unmatched_tracks:
             self.tracks[track_idx].mark_missed()
         for detection_idx in unmatched_detections:
-            self._initiate_track(detections[detection_idx], classes[detection_idx].item())
+            self._initiate_track(detections[detection_idx], classes[detection_idx].item(), color_intrin)
         self.tracks = [t for t in self.tracks if not t.is_deleted()]
 
         # Update distance metric.
@@ -93,7 +94,7 @@ class Tracker:
             track.features = []
         self.metric.partial_fit(np.asarray(features), np.asarray(targets), active_targets)
 
-    def _full_cost_metric(self, tracks, dets, track_indices, detection_indices):
+    def _full_cost_metric(self, tracks, dets, color_intrin, track_indices, detection_indices):
         """
         This implements the full lambda-based cost-metric. However, in doing so, it disregards
         the possibility to gate the position only which is provided by
@@ -111,7 +112,7 @@ class Tracker:
         for row, track_idx in enumerate(track_indices):
             pos_cost[row, :] = np.sqrt(
                 self.kf.gating_distance(
-                    tracks[track_idx].mean, tracks[track_idx].covariance, msrs, False
+                    tracks[track_idx].mean, tracks[track_idx].covariance, msrs, color_intrin, False
                 )
             ) / self.GATING_THRESHOLD
         pos_gate = pos_cost > 1.0
@@ -127,7 +128,7 @@ class Tracker:
         # Return Matrix
         return cost_matrix
 
-    def _match(self, detections):
+    def _match(self, detections, color_intrin):
         # Split track set into confirmed and unconfirmed tracks.
         confirmed_tracks = [i for i, t in enumerate(self.tracks) if t.is_confirmed()]
         unconfirmed_tracks = [i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
@@ -139,6 +140,7 @@ class Tracker:
             self.max_age,
             self.tracks,
             detections,
+            color_intrin,
             confirmed_tracks,
         )
 
@@ -154,6 +156,7 @@ class Tracker:
             self.max_iou_distance,
             self.tracks,
             detections,
+            color_intrin,
             iou_track_candidates,
             unmatched_detections,
         )
@@ -162,8 +165,8 @@ class Tracker:
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
         return matches, unmatched_tracks, unmatched_detections
 
-    def _initiate_track(self, detection, class_id):
-        mean, covariance = self.kf.initiate(detection.to_xyah())
+    def _initiate_track(self, detection, class_id, color_intrin):
+        mean, covariance = self.kf.initiate(pixel_to_point(detection.to_xyah(), color_intrin))
         self.tracks.append(Track(
             mean, covariance, self._next_id, class_id, self.n_init, self.max_age,
             detection.feature))

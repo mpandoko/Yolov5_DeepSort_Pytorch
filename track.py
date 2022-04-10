@@ -167,27 +167,41 @@ def detect(opt):
                 clss = det[:, 5]
                 z = calcdepth(xywhs, distance, depth_scale)        
                 xywhzs = torch.cat((xywhs, z), 1)
+                print("xywhzs")
+                print(xywhzs)
 
                 # pass detections to deepsort
                 t4 = time_sync()
                 if (all(x.item() > 0 for x in z)): #eliminate wrong depth readings
-                    outputs = deepsort.update(xywhzs.cpu(), confs.cpu(), clss.cpu(), im0)
+                    outputs = deepsort.update(xywhzs.cpu(), confs.cpu(), clss.cpu(), im0, color_intrin)
                     #outputs = deepsort.update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
                     t5 = time_sync()
                     dt[3] += t5 - t4
                     total_time = t5-time_start
 
-                    #deprojection
 
                     # draw boxes for visualization
                     if len(outputs) > 0:
-                        x_1 = 0
-                        y_1 = 0
-                        z_1 = 0
                         for j, (output, conf) in enumerate(zip(outputs, confs)):
-
-
-                            bboxes = output[0:4]
+                            x_m = output[0]
+                            y_m = output[1]
+                            z = output[4] 
+                            xy = rs.rs2_project_point_to_pixel(color_intrin, [x_m, y_m, z])
+                            print('output')
+                            print(xy)      
+                            width = 640
+                            height = 480
+                            w = output[2]
+                            h = output[3]
+                            print(w)
+                            print(h)
+                            x1 = max(int(xy[0] - w / 2), 0) + 1
+                            x2 = min(int(xy[0] + w / 2), width - 1)
+                            y1 = max(int(xy[1] - h / 2), 0) + 1
+                            y2 = min(int(xy[1] + h / 2), height - 1)
+                            bboxes = [int(x1), int(y1), int(x2), int(y2)]
+                            print('bboxes')
+                            print(bboxes)
                             id = int(output[10])
                             cls =int(output[11])
 
@@ -197,35 +211,13 @@ def detect(opt):
 
                             if save_txt:
                                 # to MOT format
-                                bbox_left = output[0]
-                                bbox_top = output[1]
-                                bbox_right = output[2]
-                                bbox_bottom = output[3]
-                                x = (bbox_left + bbox_right)/2
-                                y = (bbox_top + bbox_bottom)/2
-                                z = output[4] 
-                                vx = output[5]
-                                vz = output[9]
-                                dx = x - x_1
-                                print(x_1)
-                                xy_m = rs.rs2_deproject_pixel_to_point(color_intrin, [x,y], z)
-                                xy_1m = rs.rs2_deproject_pixel_to_point(color_intrin, [x_1,y_1], z_1)
-                                dx_m = xy_m[0]-xy_1m[0]
-                                vx_m = (vx * dx_m) / dx
-                                x_m = xy_m[0]
-                                x_1 = x
-                                y_1 = y
-                                z_1 = z
-                                # bbox_w = output[2] - output[0] 
-                                # bbox_h = output[3] - output[1]
-                                # Write MOT compliant results to file
-                                # with open(txt_path, 'a') as f:
-                                #    f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,
-                                #                                bbox_top, bbox_w, bbox_h, -1, -1, -1, -1))  # label format
-                                # Write for visualization gilbert
+
+                                vx = output[5] / (t5-t1)
+                                vz = output[9] / (t5-t1)
+                                # Write for visualization Live_Plot
                                 with open(txt_path, 'a') as f:
                                     f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, x_m,
-                                                            z, vx_m, vz, total_time, -1, -1, -1))  # coba ganti
+                                                            z, vx, vz, total_time, -1, -1, -1))  # coba ganti
 
                     LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
 

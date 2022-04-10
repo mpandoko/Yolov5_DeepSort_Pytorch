@@ -53,11 +53,11 @@ class DeepSort(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    def update(self, xywhz, confidences, classes, ori_img, use_yolo_preds=False):
+    def update(self, xywhz, confidences, classes, ori_img, color_intrin, use_yolo_preds=False):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
         bbox_xywh = xywhz[:,:4]
-        features = self._get_features(bbox_xywh, ori_img)
+        features = self._get_features(bbox_xywh, ori_img) #in pixel
         bbox_tlwh = self._xywh_to_tlwh(xywhz)
         detections = [Detection(bbox_tlwh[i], conf, features[i]) for i, conf in enumerate(
             confidences)]
@@ -68,7 +68,7 @@ class DeepSort(object):
 
         # update tracker
         self.tracker.predict()
-        self.tracker.update(detections, classes)
+        self.tracker.update(detections, classes, color_intrin)
 
         # output bbox identities
         outputs = []
@@ -79,11 +79,10 @@ class DeepSort(object):
                 det = track.get_yolo_pred()
                 x1, y1, x2, y2 = self._tlwh_to_xyxy(det.tlwh)
             else:
-                box = track.to_tlwhzv()
-                x1, y1, x2, y2, z, vx, vy, va, vh, vz = self._tlwh_to_xyxyz(box)
+                x, y, w, h, z, vx, vy, va, vh, vz = track.to_xywhzv()
             track_id = track.track_id
             class_id = track.class_id
-            outputs.append(np.array([int(x1), int(y1), int(x2), int(y2), z,  vx, vy, va, vh, vz, int(track_id), int(class_id)]))    
+            outputs.append(np.array([x, y, w, h, z,  vx, vy, va, vh, vz, int(track_id), int(class_id)]))    
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
         return outputs
@@ -110,19 +109,6 @@ class DeepSort(object):
         y1 = max(int(y - h / 2), 0)
         y2 = min(int(y + h / 2), self.height - 1)
         return x1, y1, x2, y2
-
-    def _tlwh_to_xyxyz(self, bbox_tlwh):
-        """
-        TODO:
-            Convert bbox from xtl_ytl_w_h to xc_yc_w_h
-        Thanks JieChen91@github.com for reporting this bug!
-        """
-        x, y, w, h, z, vx, vy, va, vh, vz = bbox_tlwh
-        x1 = max(int(x), 0)
-        x2 = min(int(x+w), self.width - 1)
-        y1 = max(int(y), 0)
-        y2 = min(int(y+h), self.height - 1)
-        return x1, y1, x2, y2, z, vx, vy, va, vh, vz
 
     def increment_ages(self):
         self.tracker.increment_ages()

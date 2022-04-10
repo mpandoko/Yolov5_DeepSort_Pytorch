@@ -1,6 +1,7 @@
 #tugas akhir by michael
 import torch
 import numpy as np
+import pyrealsense2 as rs
 
 #Calculating Depth
 def calcdepth(xywh, distance, depth_scale):
@@ -16,3 +17,14 @@ def calcdepth(xywh, distance, depth_scale):
     return torch.tensor(z).cuda()
 
     #https://github.com/IntelRealSense/librealsense/issues/6749 this potentially is more accurate, try later
+
+# Pixel to point
+def pixel_to_point(det, color_intrin):
+    xy_m = rs.rs2_deproject_pixel_to_point(color_intrin, det[:2], det[2])
+    det[:2] = xy_m[:2]
+    return det
+
+def point_to_pixel(det, color_intrin):
+    xy = rs.rs2_project_point_to_pixel(color_intrin, det[:3])
+    det[:2] = xy
+    return det

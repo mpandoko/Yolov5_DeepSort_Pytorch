@@ -1,5 +1,5 @@
 # vim: expandtab:ts=4:sw=4
-
+from utils2.object_coordinate import *
 
 class TrackState:
     """
@@ -97,8 +97,8 @@ class Track:
         ret[:2] -= ret[2:4] / 2
         return ret
 
-    def to_tlwhzv(self):
-        """Get current position in bounding box format `(top left x, top left y,
+    def to_xywhzv(self):
+        """Get current position in `(centre x, centre y,
         width, height)`.
 
         Returns
@@ -109,7 +109,6 @@ class Track:
         """
         ret = self.mean[:11].copy()
         ret[2] *= ret[3]
-        ret[:2] -= ret[2:4] / 2
         return ret
 
     def to_tlbr(self):
@@ -154,7 +153,7 @@ class Track:
         self.mean, self.covariance = kf.predict(self.mean, self.covariance)
         self.increment_age()
 
-    def update(self, kf, detection, class_id):
+    def update(self, kf, detection, class_id, color_intrin):
         """Perform Kalman filter measurement update step and update the feature
         cache.
 
@@ -166,10 +165,9 @@ class Track:
             The associated detection.
 
         """
-        #fetch vx vz here probably
         self.yolo_bbox = detection
         self.mean, self.covariance = kf.update(
-            self.mean, self.covariance, detection.to_xyah())
+            self.mean, self.covariance, pixel_to_point(detection.to_xyah(), color_intrin)) #in meter
         self.features.append(detection.feature)
         self.class_id = class_id
 
