@@ -117,7 +117,7 @@ def detect(opt):
     if pt and device.type != 'cpu':
         model(torch.zeros(1, 3, *imgsz).to(device).type_as(next(model.model.parameters())))  # warmup
     dt, seen = [0.0, 0.0, 0.0, 0.0], 0
-    for frame_idx, (path, depth, distance, depth_scale, img, im0s, color_intrin, aligned_df, vid_cap, s) in enumerate(dataset):
+    for frame_idx, (path, depth, distance, depth_scale, img, im0s, color_intrin, aligned_df, verts, vid_cap, s) in enumerate(dataset):
         t1 = time_sync()
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -199,6 +199,7 @@ def detect(opt):
                             x2 = min(int(xy[0] + w / 2), width - 1)
                             y1 = max(int(xy[1] - h / 2), 0) + 1
                             y2 = min(int(xy[1] + h / 2), height - 1)
+                            object_points = verts[x1:x2, y1:y2]
                             bboxes = [int(x1), int(y1), int(x2), int(y2)]
                             print('bboxes')
                             print(bboxes)

@@ -205,7 +205,29 @@ class LoadRealSense2:  # Stream from Intel RealSense D435
             # aligned depth & color frame
             frames = self.align.process(self.frames)
             aligned_df = frames.get_depth_frame()
-            aligned_cf = frames.get_color_frame()          
+            aligned_cf = frames.get_color_frame()
+
+            # Assign filter
+            decimation = rs.decimation_filter()
+            spatial = rs.spatial_filter()
+            temporal = rs.temporal_filter()
+            hole_filling = rs.hole_filling_filter()
+
+            # Depth to Disparity transform
+            depth_to_disparity = rs.disparity_transform(True)
+            disparity_to_depth = rs.disparity_transform(False)
+
+            point_cloud = rs.pointcloud()
+
+            # Apply filter to depth frame
+            filtered_frame = depth_to_disparity.process(aligned_df)
+            filtered_frame = spatial.process(filtered_frame)
+            filtered_frame = temporal.process(filtered_frame)
+            filtered_frame = disparity_to_depth.process(filtered_frame)
+            filtered_frame = hole_filling.process(filtered_frame)
+
+            points = point_cloud.calculate(filtered_frame)
+            verts = np.asanyarray(points.get_vertices()).view(np.float32).reshape(-1, self.width, 3)  # xyz          
 
             # get intrinsics
             depth_intrin = aligned_df.profile.as_video_stream_profile().intrinsics
@@ -241,7 +263,7 @@ class LoadRealSense2:  # Stream from Intel RealSense D435
             print('WARNING: Different stream shapes detected. For optimal performance supply similarly-shaped streams.')
 
         time.sleep(0.01)  # wait time
-        return self.rect, depth_scale, color_intrin, aligned_df
+        return self.rect, depth_scale, color_intrin, aligned_df, verts
         # return self.rect, depth_scale
 
     #Fungsi buat dapetin depth_scale
@@ -270,7 +292,7 @@ class LoadRealSense2:  # Stream from Intel RealSense D435
         self.count += 1
 
         #Dari fungsi update ambil rect dan depth_scale biar bisa di return di fungsi next
-        self.rect, depth_scale, color_intrin, aligned_df = self.update()
+        self.rect, depth_scale, color_intrin, aligned_df, verts = self.update()
         # self.rect, depth_scale = self.update()
 
         #Copy semua data dari fungsi update
@@ -298,7 +320,7 @@ class LoadRealSense2:  # Stream from Intel RealSense D435
         #img /= 255.0  # 0 - 255 to 0.0 - 1.0
 
         # Return depth, depth0, img, img0
-        return str(img_path), depth, distance, depth_scale, img, img0, color_intrin, aligned_df, None, ''
+        return str(img_path), depth, distance, depth_scale, img, img0, color_intrin, aligned_df, verts, None, ''
         # return str(img_path), depth, distance, depth_scale, img, img0, None, ''
 
     def __len__(self):
