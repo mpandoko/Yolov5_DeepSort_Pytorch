@@ -167,8 +167,6 @@ def detect(opt):
                 clss = det[:, 5]
                 z = calcdepth(xywhs, distance, depth_scale)        
                 xywhzs = torch.cat((xywhs, z), 1)
-                print("xywhzs")
-                print(xywhzs)
 
                 # pass detections to deepsort
                 t4 = time_sync()
@@ -187,22 +185,16 @@ def detect(opt):
                             y_m = output[1]
                             z = output[4] 
                             xy = rs.rs2_project_point_to_pixel(color_intrin, [x_m, y_m, z])
-                            print('output')
-                            print(xy)      
                             width = 640
                             height = 480
                             w = output[2]
                             h = output[3]
-                            print(w)
-                            print(h)
                             x1 = max(int(xy[0] - w / 2), 0) + 1
                             x2 = min(int(xy[0] + w / 2), width - 1)
                             y1 = max(int(xy[1] - h / 2), 0) + 1
                             y2 = min(int(xy[1] + h / 2), height - 1)
                             object_points = verts[x1:x2, y1:y2]
                             bboxes = [int(x1), int(y1), int(x2), int(y2)]
-                            print('bboxes')
-                            print(bboxes)
                             id = int(output[10])
                             cls =int(output[11])
 

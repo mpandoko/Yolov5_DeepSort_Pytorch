@@ -196,7 +196,7 @@ class KalmanFilter(object):
             kalman_gain, projected_cov, kalman_gain.T))
         return new_mean, new_covariance
 
-    def gating_distance(self, mean, covariance, measurements, color_intrin,
+    def gating_distance(self, mean, covariance, measurementss, color_intrin,
                         only_position=False):
         """Compute gating distance between state distribution and measurements.
 
@@ -227,11 +227,13 @@ class KalmanFilter(object):
 
         """
         mean, covariance = self.project(mean, covariance)
-        mean = point_to_pixel(mean, color_intrin)
+        measurements=np.array([np.array([])])
+        for measurement in measurementss:
+            ms = np.array([np.array(pixel_to_point(measurement, color_intrin))])
+            measurements = np.concatenate((measurements, ms), axis=0) if measurements.size else ms
         if only_position:
             mean, covariance = mean[:2], covariance[:2, :2]
             measurements = measurements[:, :2]
-
         cholesky_factor = np.linalg.cholesky(covariance)
         d = measurements - mean
         z = scipy.linalg.solve_triangular(

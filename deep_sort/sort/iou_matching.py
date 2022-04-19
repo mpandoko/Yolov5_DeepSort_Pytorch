@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import numpy as np
 from . import linear_assignment
+from utils2.object_coordinate import *
 
 
 def iou(bbox, candidates):
@@ -34,8 +35,8 @@ def iou(bbox, candidates):
     wh = np.maximum(0., br - tl)
 
     area_intersection = wh.prod(axis=1)
-    area_bbox = bbox[2:].prod()
-    area_candidates = candidates[:, 2:].prod(axis=1)
+    area_bbox = bbox[2:4].prod()
+    area_candidates = candidates[:, 2:4].prod(axis=1)
     return area_intersection / (area_bbox + area_candidates - area_intersection)
 
 
@@ -75,7 +76,7 @@ def iou_cost(tracks, detections, color_intrin, track_indices=None,
             cost_matrix[row, :] = linear_assignment.INFTY_COST
             continue
 
-        bbox = tracks[track_idx].to_tlwh()
+        bbox = track_point_to_pixel(tracks[track_idx], color_intrin)
         candidates = np.asarray(
             [detections[i].tlwh for i in detection_indices])
         cost_matrix[row, :] = 1. - iou(bbox, candidates)
