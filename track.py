@@ -98,7 +98,7 @@ def detect(opt):
         show_vid = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
         #dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt and not jit)
-        dataset = LoadRealSense2(width = 640, height = 480, fps = 30, img_size = imgsz)
+        dataset = LoadRealSense2(width = 848, height = 480, fps = 30, img_size = imgsz)
         bs = len(dataset)  # batch_size
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt and not jit)
@@ -165,12 +165,18 @@ def detect(opt):
                 xywhs = xyxy2xywh(det[:, 0:4])
                 confs = det[:, 4]
                 clss = det[:, 5]
-                z = calcdepth(xywhs, distance, depth_scale)        
+                # z = calcdepth(xywhs, distance, depth_scale)  
+                z = calcdepth(xywhs, aligned_df)      
                 xywhzs = torch.cat((xywhs, z), 1)
+                print("input")
+                print(xywhzs)
+                xywhzs = xywhzs[xywhzs[:, 4] > 0.0]
+                print(xywhzs)
+                
 
                 # pass detections to deepsort
                 t4 = time_sync()
-                if (all(x.item() > 0 for x in z)): #eliminate wrong depth readings
+                if (all(x.item() > 0 for x in z)): #eliminate zero data readings, mp thinks this line is unecessary but just for redundancy
                     outputs = deepsort.update(xywhzs.cpu(), confs.cpu(), clss.cpu(), im0, color_intrin)
                     #outputs = deepsort.update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
                     t5 = time_sync()
@@ -193,7 +199,6 @@ def detect(opt):
                             x2 = min(int(xy[0] + w / 2), width - 1)
                             y1 = max(int(xy[1] - h / 2), 0) + 1
                             y2 = min(int(xy[1] + h / 2), height - 1)
-                            object_points = verts[x1:x2, y1:y2]
                             bboxes = [int(x1), int(y1), int(x2), int(y2)]
                             id = int(output[10])
                             cls =int(output[11])
@@ -264,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--show-vid', action='store_true', help='display tracking video results')
     parser.add_argument('--save-vid', action='store_true', help='save video tracking results')
-    parser.add_argument('--save-txt', action='store_true', help='save MOT compliant results to *.txt')
+    parser.add_argument('--save-txt', default=True, help='save MOT compliant results to *.txt')
     # class 0 is person, 1 is bycicle, 2 is car... 79 is oven
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 16 17')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
