@@ -228,13 +228,19 @@ class KalmanFilter(object):
         """
         mean, covariance = self.project(mean, covariance)
         measurements=np.array([np.array([])])
-        for measurement in measurementss:
+        measurementsss = measurementss.copy()
+        # print("msrs")
+        # print(measurementss)
+        for measurement in measurementsss:
             ms = np.array([np.array(pixel_to_point(measurement, color_intrin))])
             measurements = np.concatenate((measurements, ms), axis=0) if measurements.size else ms
         if only_position:
             mean, covariance = mean[:2], covariance[:2, :2]
             measurements = measurements[:, :2]
         cholesky_factor = np.linalg.cholesky(covariance)
+        print("meas, mean")
+        print(measurements)
+        print(mean)
         d = measurements - mean
         z = scipy.linalg.solve_triangular(
             cholesky_factor, d.T, lower=True, check_finite=False,

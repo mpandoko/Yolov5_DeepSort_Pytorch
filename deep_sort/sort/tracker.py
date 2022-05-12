@@ -115,7 +115,7 @@ class Tracker:
                     tracks[track_idx].mean, tracks[track_idx].covariance, msrs, color_intrin, False
                 )
             ) / self.GATING_THRESHOLD
-        pos_gate = pos_cost > 2.0
+        pos_gate = pos_cost > 1.5
         # Now Compute the Appearance-based Cost Matrix
         app_cost = self.metric.distance(
             np.array([dets[i].feature for i in detection_indices]),

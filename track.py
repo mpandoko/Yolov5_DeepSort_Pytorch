@@ -166,22 +166,25 @@ def detect(opt):
                 confs = det[:, 4]
                 clss = det[:, 5]
                 # z = calcdepth(xywhs, distance, depth_scale)  
-                z = calcdepth(xywhs, aligned_df)      
+                # z = calcdepth(xywhs, aligned_df)      
+                z = calcdepth2(det[:, 0:4], verts)
                 xywhzs = torch.cat((xywhs, z), 1)
-                print("input")
-                print(xywhzs)
+                # print("input")
                 xywhzs = xywhzs[xywhzs[:, 4] > 0.0]
-                print(xywhzs)
+                # print(xywhzs)
                 
 
                 # pass detections to deepsort
                 t4 = time_sync()
                 if (all(x.item() > 0 for x in z)): #eliminate zero data readings, mp thinks this line is unecessary but just for redundancy
+                    # print("abcd")
                     outputs = deepsort.update(xywhzs.cpu(), confs.cpu(), clss.cpu(), im0, color_intrin)
                     #outputs = deepsort.update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
                     t5 = time_sync()
                     dt[3] += t5 - t4
                     total_time = t5-time_start
+                    print("outputs")
+                    print(outputs)
 
 
                     # draw boxes for visualization
@@ -202,6 +205,8 @@ def detect(opt):
                             bboxes = [int(x1), int(y1), int(x2), int(y2)]
                             id = int(output[10])
                             cls =int(output[11])
+                            # print("z")
+                            # print(z)
 
                             c = int(cls)  # integer class
                             label = f'{id} {names[c]} {conf:.2f}'
