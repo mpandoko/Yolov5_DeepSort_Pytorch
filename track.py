@@ -113,11 +113,13 @@ def detect(opt):
     txt_file_name = 'r'
     txt_path = str(Path(out)) + '/' + txt_file_name + '.txt'
     time_start = time_sync()
+    t1 = 0.
 
     if pt and device.type != 'cpu':
         model(torch.zeros(1, 3, *imgsz).to(device).type_as(next(model.model.parameters())))  # warmup
     dt, seen = [0.0, 0.0, 0.0, 0.0], 0
     for frame_idx, (path, depth, distance, depth_scale, img, im0s, color_intrin, aligned_df, verts, vid_cap, s) in enumerate(dataset):
+        t1b = t1
         t1 = time_sync()
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -166,8 +168,7 @@ def detect(opt):
                 confs = det[:, 4]
                 clss = det[:, 5]
                 # z = calcdepth(xywhs, distance, depth_scale)  
-                # z = calcdepth(xywhs, aligned_df)      
-                z = calcdepth2(det[:, 0:4], verts)
+                z = calcdepth(xywhs, aligned_df)      
                 xywhzs = torch.cat((xywhs, z), 1)
                 # print("input")
                 xywhzs = xywhzs[xywhzs[:, 4] > 0.0]
@@ -179,7 +180,6 @@ def detect(opt):
                 if (all(x.item() > 0 for x in z)): #eliminate zero data readings, mp thinks this line is unecessary but just for redundancy
                     # print("abcd")
                     outputs = deepsort.update(xywhzs.cpu(), confs.cpu(), clss.cpu(), im0, color_intrin)
-                    #outputs = deepsort.update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
                     t5 = time_sync()
                     dt[3] += t5 - t4
                     total_time = t5-time_start
@@ -192,7 +192,9 @@ def detect(opt):
                         for j, (output, conf) in enumerate(zip(outputs, confs)):
                             x_m = output[0]
                             y_m = output[1]
-                            z = output[4] 
+                            z = output[4]
+                            vx = output[5] / (t1-t1b)
+                            vz = output[9] / (t1-t1b) 
                             xy = rs.rs2_project_point_to_pixel(color_intrin, [x_m, y_m, z])
                             width = 848
                             height = 480
@@ -205,22 +207,23 @@ def detect(opt):
                             bboxes = [int(x1), int(y1), int(x2), int(y2)]
                             id = int(output[10])
                             cls =int(output[11])
-                            # print("z")
-                            # print(z)
+
+                            object_points = verts[y1:y2, x1:x2].reshape(-1, 3)
+                            # Get z points
+                            if not object_points.size:
+                                break
+                            zs = object_points[:, 2]
+                            z2 = np.percentile(zs, 25) #
 
                             c = int(cls)  # integer class
                             label = f'{id} {names[c]} {conf:.2f}'
                             annotator.box_label(bboxes, label, color=colors(c, True))
 
                             if save_txt:
-                                # to MOT format
-
-                                vx = output[5] / (t5-t1)
-                                vz = output[9] / (t5-t1)
                                 # Write for visualization Live_Plot
                                 with open(txt_path, 'a') as f:
                                     f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, x_m,
-                                                            z, vx, vz, total_time, -1, -1, -1))  # coba ganti
+                                                            z2, vx, vz, total_time, z, -1, -1))
 
                     LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
 
